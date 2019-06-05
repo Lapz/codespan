@@ -81,23 +81,33 @@ impl Config {
 }
 
 pub fn emit(
-    mut writer: impl WriteColor,
+    writer: &mut dyn WriteColor,
     config: &Config,
     files: &Files,
     diagnostic: &Diagnostic,
 ) -> io::Result<()> {
-    Header::new(diagnostic).emit(&mut writer, config)?;
-    NewLine::new().emit(&mut writer, config)?;
+    Header::new(diagnostic).render(writer, config)?;
+    NewLine::new().render(writer, config)?;
 
-    MarkedSource::new_primary(files, &diagnostic).emit(&mut writer, config)?;
-    NewLine::new().emit(&mut writer, config)?;
+    MarkedSource::new_primary(files, &diagnostic).render(writer, config)?;
+    NewLine::new().render(writer, config)?;
 
     for label in &diagnostic.secondary_labels {
-        MarkedSource::new_secondary(files, &label).emit(&mut writer, config)?;
-        NewLine::new().emit(&mut writer, config)?;
+        MarkedSource::new_secondary(files, &label).render(writer, config)?;
+        NewLine::new().render(writer, config)?;
     }
 
     Ok(())
+}
+
+trait Component {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()>;
+}
+
+impl<F> Component for F where F: Fn(&mut dyn WriteColor, &Config) -> io::Result<()> {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
+        self(writer, config)
+    }
 }
 
 /// Diagnostic header.
@@ -130,8 +140,10 @@ impl<'a> Header<'a> {
             Severity::Note => "note",
         }
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
+impl<'a> Component for Header<'a> {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
         let message_spec = ColorSpec::new().set_bold(true).set_intense(true).clone();
         let primary_spec = ColorSpec::new()
             .set_bold(true)
@@ -164,7 +176,7 @@ impl<'a> Header<'a> {
         write!(writer, ": {}", self.message)?;
         writer.reset()?;
 
-        NewLine::new().emit(writer, config)?;
+        NewLine::new().render(writer, config)?;
 
         Ok(())
     }
@@ -248,8 +260,10 @@ impl<'a> MarkedSource<'a> {
             MarkStyle::Secondary => config.secondary_underline_char,
         }
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
+impl<'a> Component for MarkedSource<'a> {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
         let label_spec = ColorSpec::new()
             .set_fg(Some(self.label_color(config)))
             .clone();
@@ -268,16 +282,16 @@ impl<'a> MarkedSource<'a> {
         // ┌── test:2:9 ───
         // ```
 
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderTopLeft::new().emit(writer, config)?;
-        BorderTop::new(2).emit(writer, config)?;
+        Gutter::new(None, gutter_padding).render(writer, config)?;
+        BorderTopLeft::new().render(writer, config)?;
+        BorderTop::new(2).render(writer, config)?;
         write!(writer, " ")?;
 
-        Locus::new(self.file_name(), start).emit(writer, config)?;
+        Locus::new(self.file_name(), start).render(writer, config)?;
 
         write!(writer, " ")?;
-        BorderTop::new(3).emit(writer, config)?;
-        NewLine::new().emit(writer, config)?;
+        BorderTop::new(3).render(writer, config)?;
+        NewLine::new().render(writer, config)?;
 
         // Source code snippet
         //
@@ -289,13 +303,13 @@ impl<'a> MarkedSource<'a> {
         // ```
 
         // Write initial border
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderLeft::new().emit(writer, config)?;
-        NewLine::new().emit(writer, config)?;
+        Gutter::new(None, gutter_padding).render(writer, config)?;
+        BorderLeft::new().render(writer, config)?;
+        NewLine::new().render(writer, config)?;
 
         // Write line number and border
-        Gutter::new(start.line.number(), gutter_padding).emit(writer, config)?;
-        BorderLeft::new().emit(writer, config)?;
+        Gutter::new(start.line.number(), gutter_padding).render(writer, config)?;
+        BorderLeft::new().render(writer, config)?;
 
         let line_trimmer = |ch: char| ch == '\r' || ch == '\n';
 
@@ -327,20 +341,20 @@ impl<'a> MarkedSource<'a> {
                 .map(|i| LineIndex::from(i as u32))
             {
                 // Write line number and border
-                Gutter::new(line_index.number(), gutter_padding).emit(writer, config)?;
-                BorderLeft::new().emit(writer, config)?;
+                Gutter::new(line_index.number(), gutter_padding).render(writer, config)?;
+                BorderLeft::new().render(writer, config)?;
 
                 // Write marked source section
                 let marked_span = self.line_span(line_index).expect("marked_span");
                 let marked_source = self.source_slice(marked_span).expect("marked_source_2");
                 writer.set_color(&label_spec)?;
                 write!(writer, "{}", marked_source.trim_end_matches(line_trimmer))?;
-                NewLine::new().emit(writer, config)?;
+                NewLine::new().render(writer, config)?;
             }
 
             // Write line number and border
-            Gutter::new(end.line.number(), gutter_padding).emit(writer, config)?;
-            BorderLeft::new().emit(writer, config)?;
+            Gutter::new(end.line.number(), gutter_padding).render(writer, config)?;
+            BorderLeft::new().render(writer, config)?;
 
             // Write marked source section
             let marked_span = end_line_span.with_end(self.end());
@@ -355,11 +369,11 @@ impl<'a> MarkedSource<'a> {
         let suffix_span = end_line_span.with_start(self.end());
         let source_suffix = self.source_slice(suffix_span).expect("source_suffix");
         write!(writer, "{}", source_suffix.trim_end_matches(line_trimmer))?;
-        NewLine::new().emit(writer, config)?;
+        NewLine::new().render(writer, config)?;
 
         // Write underline border
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderLeft::new().emit(writer, config)?;
+        Gutter::new(None, gutter_padding).render(writer, config)?;
+        BorderLeft::new().render(writer, config)?;
 
         // Write underline and label
         writer.set_color(&label_spec)?;
@@ -375,13 +389,13 @@ impl<'a> MarkedSource<'a> {
         if !self.label.message.is_empty() {
             write!(writer, " {}", self.label.message)?;
         }
-        NewLine::new().emit(writer, config)?;
+        NewLine::new().render(writer, config)?;
         writer.reset()?;
 
         // Write final border
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderLeft::new().emit(writer, config)?;
-        NewLine::new().emit(writer, config)?;
+        Gutter::new(None, gutter_padding).render(writer, config)?;
+        BorderLeft::new().render(writer, config)?;
+        NewLine::new().render(writer, config)?;
 
         Ok(())
     }
@@ -407,8 +421,10 @@ impl<'a> Locus<'a> {
             location,
         }
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, _config: &Config) -> io::Result<()> {
+impl<'a> Component for Locus<'a> {
+    fn render(&self, writer: &mut dyn WriteColor, _config: &Config) -> io::Result<()> {
         write!(
             writer,
             "{file}:{line}:{column}",
@@ -432,8 +448,10 @@ impl<'a> Gutter {
             gutter_padding,
         }
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
+impl Component for Gutter {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
         match self.line_number {
             None => {
                 write!(
@@ -471,8 +489,10 @@ impl BorderTopLeft {
     fn new() -> BorderTopLeft {
         BorderTopLeft {}
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
+impl Component for BorderTopLeft {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
         let border_spec = ColorSpec::new().set_fg(Some(config.border_color)).clone();
 
         writer.set_color(&border_spec)?;
@@ -492,8 +512,10 @@ impl BorderTop {
     fn new(width: usize) -> BorderTop {
         BorderTop { width }
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
+impl Component for BorderTop {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
         let border_spec = ColorSpec::new().set_fg(Some(config.border_color)).clone();
 
         writer.set_color(&border_spec)?;
@@ -513,8 +535,10 @@ impl<'a> BorderLeft {
     fn new() -> BorderLeft {
         BorderLeft {}
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
+impl Component for BorderLeft {
+    fn render(&self, writer: &mut dyn WriteColor, config: &Config) -> io::Result<()> {
         let border_spec = ColorSpec::new().set_fg(Some(config.border_color)).clone();
 
         writer.set_color(&border_spec)?;
@@ -532,8 +556,10 @@ impl<'a> NewLine {
     fn new() -> NewLine {
         NewLine {}
     }
+}
 
-    fn emit(&self, writer: &mut impl WriteColor, _config: &Config) -> io::Result<()> {
+impl Component for NewLine {
+    fn render(&self, writer: &mut dyn WriteColor, _config: &Config) -> io::Result<()> {
         write!(writer, "\n")
     }
 }
