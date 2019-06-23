@@ -130,13 +130,12 @@ impl<'a> SourceSnippet<'a> {
 
         Gutter::new(None, gutter_padding).emit(writer, config)?;
         BorderTopLeft::new().emit(writer, config)?;
-        BorderTop::new(2).emit(writer, config)?;
         write!(writer, " ")?;
 
         Locus::new(self.file_name(), start).emit(writer, config)?;
 
         write!(writer, " ")?;
-        BorderTop::new(3).emit(writer, config)?;
+        BorderTop::new().emit(writer, config)?;
         NewLine::new().emit(writer, config)?;
 
         // Code snippet

@@ -4,6 +4,10 @@ use termcolor::WriteColor;
 use crate::term::Config;
 
 /// The top-left corner of a source line.
+///
+/// ```text
+/// ┌──
+/// ```
 pub struct BorderTopLeft {}
 
 impl BorderTopLeft {
@@ -12,8 +16,9 @@ impl BorderTopLeft {
     }
 
     pub fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
-        writer.set_color(&config.styles.border)?;
-        write!(writer, "{top_left}", top_left = config.border_top_left_char)?;
+        writer.set_color(&config.styles.source_border)?;
+        write!(writer, "{top_left}", top_left = config.source_border_top_left_char)?;
+        write!(writer, "{top}{top}", top = config.source_border_top_char)?;
         writer.reset()?;
 
         Ok(())
@@ -21,20 +26,20 @@ impl BorderTopLeft {
 }
 
 /// The top border of a source line.
-pub struct BorderTop {
-    width: usize,
-}
+///
+/// ```text
+/// ───
+/// ```
+pub struct BorderTop {}
 
 impl BorderTop {
-    pub fn new(width: usize) -> BorderTop {
-        BorderTop { width }
+    pub fn new() -> BorderTop {
+        BorderTop {}
     }
 
     pub fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
-        writer.set_color(&config.styles.border)?;
-        for _ in 0..self.width {
-            write!(writer, "{top}", top = config.border_top_char)?
-        }
+        writer.set_color(&config.styles.source_border)?;
+        write!(writer, "{top}{top}{top}", top = config.source_border_top_char)?;
         writer.reset()?;
 
         Ok(())
@@ -50,8 +55,8 @@ impl BorderLeft {
     }
 
     pub fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
-        writer.set_color(&config.styles.border)?;
-        write!(writer, "{left}", left = config.border_left_char)?;
+        writer.set_color(&config.styles.source_border)?;
+        write!(writer, "{left}", left = config.source_border_left_char)?;
         writer.reset()?;
 
         Ok(())

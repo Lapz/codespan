@@ -39,13 +39,13 @@ pub struct Config {
     pub styles: Styles,
     /// The character to use for the top-left corner of the source.
     /// Defaults to: `'┌'`.
-    pub border_top_left_char: char,
+    pub source_border_top_left_char: char,
     /// The character to use for the top border of the source.
     /// Defaults to: `'─'`.
-    pub border_top_char: char,
+    pub source_border_top_char: char,
     /// The character to use for the left border of the source.
     /// Defaults to: `'│'`.
-    pub border_left_char: char,
+    pub source_border_left_char: char,
     /// The character to use for marking a primary label.
     /// Defaults to: `'^'`.
     pub primary_caret_char: char,
@@ -84,9 +84,9 @@ impl Default for Config {
             display_style: DisplayStyle::Rich,
             tab_width: 4,
             styles: Styles::default(),
-            border_top_left_char: '┌',
-            border_top_char: '─',
-            border_left_char: '│',
+            source_border_top_left_char: '┌',
+            source_border_top_char: '─',
+            source_border_left_char: '│',
             primary_caret_char: '^',
             secondary_caret_char: '-',
             multiline_primary_caret_char: '^',
@@ -191,7 +191,7 @@ pub struct Styles {
     pub line_number: ColorSpec,
     /// The style to use when rendering the source code borders.
     /// Defaults `fg:blue` (or `fg:cyan` on windows).
-    pub border: ColorSpec,
+    pub source_border: ColorSpec,
     /// The style to use when rendering the note bullets.
     /// Defaults `fg:blue` (or `fg:cyan` on windows).
     pub note_bullet: ColorSpec,
@@ -247,7 +247,7 @@ impl Default for Styles {
             secondary_label: ColorSpec::new().set_fg(Some(BLUE)).clone(),
 
             line_number: ColorSpec::new().set_fg(Some(BLUE)).clone(),
-            border: ColorSpec::new().set_fg(Some(BLUE)).clone(),
+            source_border: ColorSpec::new().set_fg(Some(BLUE)).clone(),
             note_bullet: ColorSpec::new().set_fg(Some(BLUE)).clone(),
         }
     }
