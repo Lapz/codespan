@@ -3,7 +3,7 @@ use termcolor::WriteColor;
 
 use crate::term::Config;
 
-use super::{Gutter, NewLine};
+use super::NewLine;
 
 /// Additional note
 ///
@@ -26,7 +26,8 @@ impl<'a> Note<'a> {
 
     pub fn emit(&self, writer: &mut impl WriteColor, config: &Config) -> io::Result<()> {
         for (i, line) in self.message.lines().enumerate() {
-            Gutter::new(None, self.gutter_padding).emit(writer, config)?;
+            let pad = self.gutter_padding;
+            write!(writer, "{space: >pad$}", space = "", pad = pad + 1)?;
             match i {
                 0 => Bullet::new().emit(writer, config)?,
                 _ => write!(writer, " ")?,

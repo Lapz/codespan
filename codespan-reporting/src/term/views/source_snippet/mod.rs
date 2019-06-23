@@ -8,12 +8,10 @@ use crate::term::Config;
 use super::{Locus, NewLine};
 
 mod border;
-mod gutter;
 mod note;
 mod underline;
 
 use self::border::{BorderLeft, BorderTop, BorderTopLeft};
-use self::gutter::Gutter;
 use self::note::Note;
 use self::underline::{
     MarkStyle, Underline, UnderlineBottom, UnderlineLeft, UnderlineTop, UnderlineTopLeft,
@@ -118,7 +116,7 @@ impl<'a> SourceSnippet<'a> {
 
         let label_style = self.label_style(config);
         // Use the length of the last line number as the gutter padding
-        let gutter_padding = format!("{}", end.line.number()).len();
+        let gutter_padding = format!("{}", end.line.number()).len() + 1;
         // Cache the tabs we'll be using to pad the source strings.
         let tab = config.tab_padding();
 
@@ -128,13 +126,8 @@ impl<'a> SourceSnippet<'a> {
         // ┌── test:2:9 ───
         // ```
 
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderTopLeft::new().emit(writer, config)?;
-        write!(writer, " ")?;
-
+        BorderTopLeft::new(gutter_padding).emit(writer, config)?;
         Locus::new(self.file_name(), start).emit(writer, config)?;
-
-        write!(writer, " ")?;
         BorderTop::new().emit(writer, config)?;
         NewLine::new().emit(writer, config)?;
 
@@ -148,8 +141,7 @@ impl<'a> SourceSnippet<'a> {
         // ```
 
         // Write initial border
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderLeft::new().emit(writer, config)?;
+        BorderLeft::new(None, gutter_padding).emit(writer, config)?;
         NewLine::new().emit(writer, config)?;
 
         let line_trimmer = |ch: char| ch == '\r' || ch == '\n';
@@ -164,8 +156,7 @@ impl<'a> SourceSnippet<'a> {
             // ```
 
             // Write line number and border
-            Gutter::new(start.line.number(), gutter_padding).emit(writer, config)?;
-            BorderLeft::new().emit(writer, config)?;
+            BorderLeft::new(start.line.number(), gutter_padding).emit(writer, config)?;
             write!(writer, " ")?;
 
             // Write source prefix before marked section
@@ -186,8 +177,7 @@ impl<'a> SourceSnippet<'a> {
             NewLine::new().emit(writer, config)?;
 
             // Write border, underline, and label
-            Gutter::new(None, gutter_padding).emit(writer, config)?;
-            BorderLeft::new().emit(writer, config)?;
+            BorderLeft::new(None, gutter_padding).emit(writer, config)?;
             Underline::new(
                 self.mark_style,
                 &source_prefix,
@@ -210,8 +200,7 @@ impl<'a> SourceSnippet<'a> {
             // ```
 
             // Write line number and border
-            Gutter::new(start.line.number(), gutter_padding).emit(writer, config)?;
-            BorderLeft::new().emit(writer, config)?;
+            BorderLeft::new(start.line.number(), gutter_padding).emit(writer, config)?;
 
             let prefix_span = start_line_span.with_end(self.span.start());
             let source_prefix = self.source_slice(prefix_span, &tab).expect("source_prefix");
@@ -258,8 +247,7 @@ impl<'a> SourceSnippet<'a> {
                 NewLine::new().emit(writer, config)?;
 
                 // Write border and underline
-                Gutter::new(None, gutter_padding).emit(writer, config)?;
-                BorderLeft::new().emit(writer, config)?;
+                BorderLeft::new(None, gutter_padding).emit(writer, config)?;
                 UnderlineTop::new(self.mark_style, &source_prefix).emit(writer, config)?;
                 NewLine::new().emit(writer, config)?;
             }
@@ -275,8 +263,7 @@ impl<'a> SourceSnippet<'a> {
                 .map(|i| LineIndex::from(i as u32))
             {
                 // Write line number, border, and underline
-                Gutter::new(line_index.number(), gutter_padding).emit(writer, config)?;
-                BorderLeft::new().emit(writer, config)?;
+                BorderLeft::new(line_index.number(), gutter_padding).emit(writer, config)?;
                 UnderlineLeft::new(self.mark_style).emit(writer, config)?;
 
                 // Write marked source section
@@ -298,8 +285,7 @@ impl<'a> SourceSnippet<'a> {
             // ```
 
             // Write line number, border, and underline
-            Gutter::new(end.line.number(), gutter_padding).emit(writer, config)?;
-            BorderLeft::new().emit(writer, config)?;
+            BorderLeft::new(end.line.number(), gutter_padding).emit(writer, config)?;
             UnderlineLeft::new(self.mark_style).emit(writer, config)?;
 
             // Write marked source section
@@ -318,16 +304,14 @@ impl<'a> SourceSnippet<'a> {
             NewLine::new().emit(writer, config)?;
 
             // Write border, underline, and label
-            Gutter::new(None, gutter_padding).emit(writer, config)?;
-            BorderLeft::new().emit(writer, config)?;
+            BorderLeft::new(None, gutter_padding).emit(writer, config)?;
             UnderlineBottom::new(self.mark_style, &marked_source, self.message)
                 .emit(writer, config)?;
             NewLine::new().emit(writer, config)?;
         };
 
         // Write final border
-        Gutter::new(None, gutter_padding).emit(writer, config)?;
-        BorderLeft::new().emit(writer, config)?;
+        BorderLeft::new(None, gutter_padding).emit(writer, config)?;
         NewLine::new().emit(writer, config)?;
 
         // Additional notes
