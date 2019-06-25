@@ -1,5 +1,5 @@
 use codespan::Location;
-use std::io;
+use std::{fmt, io};
 use termcolor::WriteColor;
 
 use crate::term::Config;
@@ -12,13 +12,13 @@ use crate::term::Config;
 /// ```text
 /// test:2:9
 /// ```
-pub struct Locus<'a> {
-    file_name: &'a str,
+pub struct Locus<FileName> {
+    file_name: FileName,
     location: Location,
 }
 
-impl<'a> Locus<'a> {
-    pub fn new(file_name: &'a str, location: Location) -> Locus<'a> {
+impl<FileName: fmt::Display> Locus<FileName> {
+    pub fn new(file_name: FileName, location: Location) -> Locus<FileName> {
         Locus {
             file_name,
             location,

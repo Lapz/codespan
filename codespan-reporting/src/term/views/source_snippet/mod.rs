@@ -1,9 +1,10 @@
-use codespan::{ByteIndex, FileId, Files, LineIndex, Location, Span};
+use codespan::{LineIndex, Location};
 use std::io;
 use termcolor::WriteColor;
 
 use crate::diagnostic::{Diagnostic, Label};
 use crate::term::Config;
+use crate::{Files, Span};
 
 use super::{Locus, NewLine};
 
@@ -30,17 +31,17 @@ use self::underline::{
 ///   = expected type `Int`
 ///        found type `String`
 /// ```
-pub struct SourceSnippet<'a> {
-    files: &'a Files,
-    file_id: FileId,
-    span: Span,
+pub struct SourceSnippet<'a, F: Files> {
+    files: &'a F,
+    file_id: F::FileId,
+    span: F::Span,
     message: &'a str,
     mark_style: MarkStyle,
     notes: &'a [String],
 }
 
-impl<'a> SourceSnippet<'a> {
-    pub fn new_primary(files: &'a Files, diagnostic: &'a Diagnostic) -> SourceSnippet<'a> {
+impl<'a, F: Files> SourceSnippet<'a, F> {
+    pub fn new_primary(files: &'a F, diagnostic: &'a Diagnostic<F>) -> SourceSnippet<'a, F> {
         SourceSnippet {
             files,
             file_id: diagnostic.primary_label.file_id,
@@ -51,7 +52,7 @@ impl<'a> SourceSnippet<'a> {
         }
     }
 
-    pub fn new_secondary(files: &'a Files, label: &'a Label) -> SourceSnippet<'a> {
+    pub fn new_secondary(files: &'a F, label: &'a Label<F>) -> SourceSnippet<'a, F> {
         SourceSnippet {
             files,
             file_id: label.file_id,
@@ -62,15 +63,18 @@ impl<'a> SourceSnippet<'a> {
         }
     }
 
-    fn file_name(&self) -> &'a str {
+    fn file_name(&self) -> F::FileName {
         self.files.name(self.file_id)
     }
 
-    fn location(&self, byte_index: ByteIndex) -> Result<Location, impl std::error::Error> {
+    fn location(
+        &self,
+        byte_index: <F::Span as Span>::ByteIndex,
+    ) -> Option<Location> {
         self.files.location(self.file_id, byte_index)
     }
 
-    fn source_slice(&self, span: Span, tab: &'a str) -> Result<String, impl std::error::Error> {
+    fn source_slice(&self, span: F::Span, tab: &'a str) -> Option<String> {
         // NOTE: Not sure if we can do this more efficiently? Perhaps a custom
         // writer might be better?
         self.files
@@ -78,7 +82,7 @@ impl<'a> SourceSnippet<'a> {
             .map(|s| s.replace('\t', tab))
     }
 
-    fn line_span(&self, line_index: LineIndex) -> Result<Span, impl std::error::Error> {
+    fn line_span(&self, line_index: F::LineIndex) -> Option<F::Span> {
         self.files.line_span(self.file_id, line_index)
     }
 

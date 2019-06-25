@@ -1,9 +1,10 @@
 //! Diagnostic data structures.
 
-use codespan::{FileId, Span};
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+
+use crate::Files;
 
 /// A severity level for diagnostic messages.
 ///
@@ -53,22 +54,26 @@ impl PartialOrd for Severity {
 }
 
 /// A label describing an underlined region of code associated with a diagnostic.
-#[derive(Clone, Debug)]
+// FIXME: #[derive(Clone, Debug)]
 #[cfg_attr(feature = "memory_usage", derive(heapsize_derive::HeapSizeOf))]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-pub struct Label {
+pub struct Label<F: Files> {
     /// The file that we are labelling.
-    pub file_id: FileId,
+    pub file_id: F::FileId,
     /// The span we are going to include in the final snippet.
-    pub span: Span,
+    pub span: F::Span,
     /// A message to provide some additional information for the underlined
     /// code. These should not include line breaks.
     pub message: String,
 }
 
-impl Label {
+impl<F: Files> Label<F> {
     /// Create a new label.
-    pub fn new(file_id: FileId, span: impl Into<Span>, message: impl Into<String>) -> Label {
+    pub fn new(
+        file_id: F::FileId,
+        span: impl Into<F::Span>,
+        message: impl Into<String>,
+    ) -> Label<F> {
         Label {
             file_id,
             span: span.into(),
@@ -79,10 +84,10 @@ impl Label {
 
 /// Represents a diagnostic message that can provide information like errors and
 /// warnings to the user.
-#[derive(Clone, Debug)]
+// FIXME: #[derive(Clone, Debug)]
 #[cfg_attr(feature = "memory_usage", derive(heapsize_derive::HeapSizeOf))]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-pub struct Diagnostic {
+pub struct Diagnostic<F: Files> {
     /// The overall severity of the diagnostic
     pub severity: Severity,
     /// An optional code that identifies this diagnostic.
@@ -94,17 +99,21 @@ pub struct Diagnostic {
     /// `primary_label`.
     pub message: String,
     /// A label that describes the primary cause of this diagnostic.
-    pub primary_label: Label,
+    pub primary_label: Label<F>,
     /// Notes that are associated with the primary cause of the diagnostic.
     /// These can include line breaks for improved formatting.
     pub notes: Vec<String>,
     /// Secondary labels that provide additional context for the diagnostic.
-    pub secondary_labels: Vec<Label>,
+    pub secondary_labels: Vec<Label<F>>,
 }
 
-impl Diagnostic {
+impl<F: Files> Diagnostic<F> {
     /// Create a new diagnostic.
-    pub fn new(severity: Severity, message: impl Into<String>, primary_label: Label) -> Diagnostic {
+    pub fn new(
+        severity: Severity,
+        message: impl Into<String>,
+        primary_label: Label<F>,
+    ) -> Diagnostic<F> {
         Diagnostic {
             severity,
             code: None,
@@ -116,44 +125,47 @@ impl Diagnostic {
     }
 
     /// Create a new diagnostic with a severity of `Severity::Bug`.
-    pub fn new_bug(message: impl Into<String>, primary_label: Label) -> Diagnostic {
+    pub fn new_bug(message: impl Into<String>, primary_label: Label<F>) -> Diagnostic<F> {
         Diagnostic::new(Severity::Bug, message, primary_label)
     }
 
     /// Create a new diagnostic with a severity of `Severity::Error`.
-    pub fn new_error(message: impl Into<String>, primary_label: Label) -> Diagnostic {
+    pub fn new_error(message: impl Into<String>, primary_label: Label<F>) -> Diagnostic<F> {
         Diagnostic::new(Severity::Error, message, primary_label)
     }
 
     /// Create a new diagnostic with a severity of `Severity::Warning`.
-    pub fn new_warning(message: impl Into<String>, primary_label: Label) -> Diagnostic {
+    pub fn new_warning(message: impl Into<String>, primary_label: Label<F>) -> Diagnostic<F> {
         Diagnostic::new(Severity::Warning, message, primary_label)
     }
 
     /// Create a new diagnostic with a severity of `Severity::Note`.
-    pub fn new_note(message: impl Into<String>, primary_label: Label) -> Diagnostic {
+    pub fn new_note(message: impl Into<String>, primary_label: Label<F>) -> Diagnostic<F> {
         Diagnostic::new(Severity::Note, message, primary_label)
     }
 
     /// Create a new diagnostic with a severity of `Severity::Help`.
-    pub fn new_help(message: impl Into<String>, primary_label: Label) -> Diagnostic {
+    pub fn new_help(message: impl Into<String>, primary_label: Label<F>) -> Diagnostic<F> {
         Diagnostic::new(Severity::Help, message, primary_label)
     }
 
     /// Add an error code to the diagnostic.
-    pub fn with_code(mut self, code: impl Into<String>) -> Diagnostic {
+    pub fn with_code(mut self, code: impl Into<String>) -> Diagnostic<F> {
         self.code = Some(code.into());
         self
     }
 
     /// Add some notes to the diagnostic.
-    pub fn with_notes(mut self, notes: Vec<String>) -> Diagnostic {
+    pub fn with_notes(mut self, notes: Vec<String>) -> Diagnostic<F> {
         self.notes = notes;
         self
     }
 
     /// Add some secondary labels to the diagnostic.
-    pub fn with_secondary_labels(mut self, labels: impl IntoIterator<Item = Label>) -> Diagnostic {
+    pub fn with_secondary_labels(
+        mut self,
+        labels: impl IntoIterator<Item = Label<F>>,
+    ) -> Diagnostic<F> {
         self.secondary_labels.extend(labels);
         self
     }

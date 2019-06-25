@@ -3,6 +3,7 @@ use termcolor::WriteColor;
 
 use crate::diagnostic::{Diagnostic, Severity};
 use crate::term::Config;
+use crate::Files;
 
 use super::NewLine;
 
@@ -19,7 +20,7 @@ pub struct Header<'a> {
 }
 
 impl<'a> Header<'a> {
-    pub fn new(diagnostic: &'a Diagnostic) -> Header<'a> {
+    pub fn new<F: Files>(diagnostic: &'a Diagnostic<F>) -> Header<'a> {
         Header {
             severity: diagnostic.severity,
             code: diagnostic.code.as_ref().map(String::as_str),

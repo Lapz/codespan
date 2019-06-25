@@ -1,11 +1,11 @@
 //! Terminal back-end for emitting diagnostics.
 
-use codespan::Files;
 use std::io;
 use std::str::FromStr;
 use termcolor::{ColorChoice, WriteColor};
 
 use crate::diagnostic::Diagnostic;
+use crate::Files;
 
 mod config;
 mod views;
@@ -15,11 +15,11 @@ pub use termcolor;
 pub use self::config::{Chars, Config, DisplayStyle, Styles};
 
 /// Emit a diagnostic using the given writer, context, config, and files.
-pub fn emit(
+pub fn emit<F: Files>(
     writer: &mut impl WriteColor,
     config: &Config,
-    files: &Files,
-    diagnostic: &Diagnostic,
+    files: &F,
+    diagnostic: &Diagnostic<F>,
 ) -> io::Result<()> {
     use self::views::{RichDiagnostic, ShortDiagnostic};
 

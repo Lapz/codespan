@@ -1,20 +1,21 @@
-use codespan::{Files, Location};
+use codespan::Location;
 use std::io;
 use termcolor::WriteColor;
 
 use crate::diagnostic::Diagnostic;
 use crate::term::Config;
+use crate::{Files, Span};
 
 use super::{Header, Locus, NewLine, SourceSnippet};
 
 /// Output a richly formatted diagnostic, with source code previews.
-pub struct RichDiagnostic<'a> {
-    files: &'a Files,
-    diagnostic: &'a Diagnostic,
+pub struct RichDiagnostic<'a, F: Files> {
+    files: &'a F,
+    diagnostic: &'a Diagnostic<F>,
 }
 
-impl<'a> RichDiagnostic<'a> {
-    pub fn new(files: &'a Files, diagnostic: &'a Diagnostic) -> RichDiagnostic<'a> {
+impl<'a, F: Files> RichDiagnostic<'a, F> {
+    pub fn new(files: &'a F, diagnostic: &'a Diagnostic<F>) -> RichDiagnostic<'a, F> {
         RichDiagnostic { files, diagnostic }
     }
 
@@ -35,21 +36,21 @@ impl<'a> RichDiagnostic<'a> {
 }
 
 /// Output a short diagnostic, with a line number, severity, and message.
-pub struct ShortDiagnostic<'a> {
-    files: &'a Files,
-    diagnostic: &'a Diagnostic,
+pub struct ShortDiagnostic<'a, F: Files> {
+    files: &'a F,
+    diagnostic: &'a Diagnostic<F>,
 }
 
-impl<'a> ShortDiagnostic<'a> {
-    pub fn new(files: &'a Files, diagnostic: &'a Diagnostic) -> ShortDiagnostic<'a> {
+impl<'a, F: Files> ShortDiagnostic<'a, F> {
+    pub fn new(files: &'a F, diagnostic: &'a Diagnostic<F>) -> ShortDiagnostic<'a, F> {
         ShortDiagnostic { files, diagnostic }
     }
 
-    fn file_name(&self) -> &'a str {
+    fn file_name(&self) -> F::FileName {
         self.files.name(self.diagnostic.primary_label.file_id)
     }
 
-    fn primary_location(&self) -> Result<Location, impl std::error::Error> {
+    fn primary_location(&self) -> Option<Location> {
         let label = &self.diagnostic.primary_label;
         self.files.location(label.file_id, label.span.start())
     }
