@@ -14,6 +14,7 @@
 mod file;
 mod index;
 mod location;
+pub mod reporting;
 mod span;
 
 pub use crate::file::{FileId, Files};

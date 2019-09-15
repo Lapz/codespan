@@ -1,10 +1,10 @@
 //! Utilities for translating from codespan types into Language Server Protocol (LSP) types
 
+use codespan::reporting::{Diagnostic, Severity};
 use codespan::{
     ByteIndex, ByteOffset, ColumnIndex, FileId, Files, LineIndex, LineIndexOutOfBoundsError,
     LocationError, RawIndex, RawOffset, Span, SpanOutOfBoundsError,
 };
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use lsp_types as lsp;
 use std::{error, fmt};
 use url::Url;
@@ -169,7 +169,7 @@ pub fn make_lsp_severity(severity: Severity) -> lsp::DiagnosticSeverity {
     }
 }
 
-/// Translates a `codespan_reporting::Diagnostic` to a
+/// Translates a `codespan::reporting::Diagnostic` to a
 /// `languageserver_types::Diagnostic`.
 ///
 /// Since the language client requires `Url`s to locate the diagnostics,

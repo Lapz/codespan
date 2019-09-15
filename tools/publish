@@ -37,7 +37,6 @@ function publish {
 }
 
 publish codespan
-publish codespan-reporting
 publish codespan-lsp
 
 git tag "v$VERSION"
