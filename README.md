@@ -22,13 +22,13 @@ To get an idea of what the colored CLI output looks like with
 `codespan`, clone the repository and run the following:
 
 ```sh
-cargo run -p codespan --example=term
-cargo run -p codespan --example=term -- --color never
+cargo run --example=term
+cargo run --example=term -- --color never
 ```
 
 You should see something like the following in your terminal:
 
-![screenshot](./codespan/assets/screenshot.png)
+![screenshot](./assets/screenshot.png)
 
 We're still working on the output - stay tuned for updates!
 

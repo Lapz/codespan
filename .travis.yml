@@ -20,9 +20,5 @@ matrix:
 
 script:
   - set -ex
-  # We manually build/test each crate and pass in any necessary feature flags
-  # to work around rust-lang/cargo#4942
-
-  # codespan
-  - cargo build --manifest-path=codespan/Cargo.toml --verbose --no-default-features --features="$CARGO_FEATURES"
-  - cargo test --manifest-path=codespan/Cargo.toml --verbose --no-default-features --features="$CARGO_FEATURES"
+  - cargo build --verbose --no-default-features --features="$CARGO_FEATURES"
+  - cargo test --verbose --no-default-features --features="$CARGO_FEATURES"

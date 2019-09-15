@@ -1,7 +1,7 @@
 ---
 created: "2019-06-11T09:53:33.497565Z"
 creator: insta@0.8.1
-source: codespan/tests/emit.rs
+source: tests/emit.rs
 expression: result
 ---
 Data/Nat.fun:7:13: error: unknown builtin: `NATRAL`
