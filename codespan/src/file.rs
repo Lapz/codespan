@@ -1,8 +1,16 @@
+#[cfg(feature = "lsp")]
+use lsp_types as lsp;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 use std::{error, fmt};
+#[cfg(feature = "lsp")]
+use url::Url;
 
+#[cfg(feature = "lsp")]
+use crate::reporting::Diagnostic;
 use crate::{ByteIndex, ColumnIndex, LineIndex, LineOffset, Location, RawIndex, Span};
+#[cfg(feature = "lsp")]
+use crate::{ByteOffset, RawOffset};
 
 #[derive(Debug, PartialEq)]
 pub struct LineIndexOutOfBoundsError {
@@ -239,6 +247,237 @@ impl Files {
     }
 }
 
+#[cfg(feature = "lsp")]
+#[derive(Debug, PartialEq)]
+pub enum LspFilesError {
+    ColumnOutOfBounds {
+        given: ColumnIndex,
+        max: ColumnIndex,
+    },
+    LineIndexOutOfBounds(LineIndexOutOfBoundsError),
+    Location(LocationError),
+    SpanOutOfBounds(SpanOutOfBoundsError),
+    UnableToCorrelateFilename(String),
+}
+
+#[cfg(feature = "lsp")]
+impl fmt::Display for LspFilesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LspFilesError::ColumnOutOfBounds { given, max } => {
+                write!(f, "Column out of bounds - given: {}, max: {}", given, max)
+            },
+            LspFilesError::LineIndexOutOfBounds(e) => e.fmt(f),
+            LspFilesError::Location(e) => e.fmt(f),
+            LspFilesError::SpanOutOfBounds(e) => e.fmt(f),
+            LspFilesError::UnableToCorrelateFilename(s) => {
+                write!(f, "Unable to correlate filename `{}` to url", s)
+            },
+        }
+    }
+}
+
+#[cfg(feature = "lsp")]
+impl From<LineIndexOutOfBoundsError> for LspFilesError {
+    fn from(e: LineIndexOutOfBoundsError) -> LspFilesError {
+        LspFilesError::LineIndexOutOfBounds(e)
+    }
+}
+
+#[cfg(feature = "lsp")]
+impl From<LocationError> for LspFilesError {
+    fn from(e: LocationError) -> LspFilesError {
+        LspFilesError::Location(e)
+    }
+}
+
+#[cfg(feature = "lsp")]
+impl From<SpanOutOfBoundsError> for LspFilesError {
+    fn from(e: SpanOutOfBoundsError) -> LspFilesError {
+        LspFilesError::SpanOutOfBounds(e)
+    }
+}
+
+#[cfg(feature = "lsp")]
+impl error::Error for LspFilesError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            LspFilesError::ColumnOutOfBounds { .. }
+            | LspFilesError::UnableToCorrelateFilename(_) => None,
+            LspFilesError::Location(error) => Some(error),
+            LspFilesError::LineIndexOutOfBounds(error) => Some(error),
+            LspFilesError::SpanOutOfBounds(error) => Some(error),
+        }
+    }
+}
+
+#[cfg(feature = "lsp")]
+fn character_to_byte_offset(line: &str, character: u64) -> Result<ByteOffset, LspFilesError> {
+    let line_len = ByteOffset::from(line.len() as RawOffset);
+    let mut character_offset = 0;
+
+    let mut chars = line.chars();
+    while let Some(ch) = chars.next() {
+        if character_offset == character {
+            let chars_off = ByteOffset::from_str_len(chars.as_str());
+            let ch_off = ByteOffset::from_char_len(ch);
+
+            return Ok(line_len - chars_off - ch_off);
+        }
+
+        character_offset += ch.len_utf16() as u64;
+    }
+
+    // Handle positions after the last character on the line
+    if character_offset == character {
+        Ok(line_len)
+    } else {
+        Err(LspFilesError::ColumnOutOfBounds {
+            given: ColumnIndex(character_offset as RawIndex),
+            max: ColumnIndex(line.len() as RawIndex),
+        })
+    }
+}
+
+#[cfg(feature = "lsp")]
+impl Files {
+    pub fn byte_index_to_lsp_position(
+        &self,
+        file_id: FileId,
+        byte_index: ByteIndex,
+    ) -> Result<lsp::Position, LspFilesError> {
+        let location = self.location(file_id, byte_index)?;
+        let line_span = self.line_span(file_id, location.line)?;
+        let line_str = self.source_slice(file_id, line_span)?;
+        let column = ColumnIndex::from((byte_index - line_span.start()).0 as RawIndex);
+
+        if column.to_usize() > line_str.len() {
+            let max = ColumnIndex(line_str.len() as RawIndex);
+            let given = column;
+
+            Err(LspFilesError::ColumnOutOfBounds { given, max })
+        } else if !line_str.is_char_boundary(column.to_usize()) {
+            let given = byte_index;
+
+            Err(LocationError::InvalidCharBoundary { given }.into())
+        } else {
+            let line_utf16 = line_str[..column.to_usize()].encode_utf16();
+            let character = line_utf16.count() as u64;
+            let line = location.line.to_usize() as u64;
+
+            Ok(lsp::Position { line, character })
+        }
+    }
+
+    pub fn span_to_lsp_range(
+        &self,
+        file_id: FileId,
+        span: Span,
+    ) -> Result<lsp::Range, LspFilesError> {
+        Ok(lsp::Range {
+            start: self.byte_index_to_lsp_position(file_id, span.start())?,
+            end: self.byte_index_to_lsp_position(file_id, span.end())?,
+        })
+    }
+
+    pub fn lsp_position_to_byte_index(
+        &self,
+        file_id: FileId,
+        position: &lsp::Position,
+    ) -> Result<ByteIndex, LspFilesError> {
+        let line_span = self.line_span(file_id, position.line as RawIndex)?;
+        let source = self.source_slice(file_id, line_span)?;
+        let byte_offset = character_to_byte_offset(source, position.character)?;
+
+        Ok(line_span.start() + byte_offset)
+    }
+
+    pub fn lsp_range_to_span(
+        &self,
+        file_id: FileId,
+        range: &lsp::Range,
+    ) -> Result<Span, LspFilesError> {
+        Ok(Span::new(
+            self.lsp_position_to_byte_index(file_id, &range.start)?,
+            self.lsp_position_to_byte_index(file_id, &range.end)?,
+        ))
+    }
+
+    /// Translates a `codespan::reporting::Diagnostic` to a
+    /// `languageserver_types::Diagnostic`.
+    ///
+    /// Since the language client requires `Url`s to locate the diagnostics,
+    /// `correlate_file_url` is necessary to resolve codespan `FileName`s
+    ///
+    /// `code` and `file` are left empty by this function
+    pub fn diagnostic_to_lsp_diagnostic(
+        &self,
+        source: impl Into<Option<String>>,
+        diagnostic: Diagnostic,
+        mut correlate_file_url: impl FnMut(FileId) -> Result<Url, ()>,
+    ) -> Result<lsp::Diagnostic, LspFilesError> {
+        // We need a position for the primary error so take the span from the first primary label
+        let primary_file_id = diagnostic.primary_label.file_id;
+        let primary_span = diagnostic.primary_label.span;
+        let primary_label_range = self.span_to_lsp_range(primary_file_id, primary_span)?;
+
+        // Collect additional context for primary message
+        let primary_message = {
+            let mut message = diagnostic.message;
+
+            if !diagnostic.notes.is_empty() {
+                // Spacer between message and notes
+                message.push_str("\n\n");
+                // Insert notes as a bulleted list
+                for note in diagnostic.notes {
+                    for (i, line) in note.lines().enumerate() {
+                        message.push_str("  ");
+                        match i {
+                            0 => message.push_str("•"),
+                            _ => message.push_str(" "),
+                        }
+                        message.push_str(" ");
+                        message.push_str(line.trim_end());
+                        message.push_str("\n");
+                    }
+                }
+            }
+
+            message
+        };
+
+        let related_information = diagnostic
+            .secondary_labels
+            .into_iter()
+            .map(|label| {
+                let file_id = label.file_id;
+                let range = self.span_to_lsp_range(file_id, label.span)?;
+                let uri = correlate_file_url(file_id).map_err(|()| {
+                    LspFilesError::UnableToCorrelateFilename(self.name(file_id).to_owned())
+                })?;
+
+                Ok(lsp::DiagnosticRelatedInformation {
+                    location: lsp::Location { uri, range },
+                    message: label.message,
+                })
+            })
+            .collect::<Result<Vec<_>, LspFilesError>>()?;
+
+        Ok(lsp::Diagnostic {
+            range: primary_label_range,
+            code: diagnostic.code.map(lsp::NumberOrString::String),
+            source: source.into(),
+            severity: Some(diagnostic.severity.into_lsp_severity()),
+            message: primary_message,
+            related_information: if related_information.is_empty() {
+                None
+            } else {
+                Some(related_information)
+            },
+        })
+    }
+}
+
 /// A file that is stored in the database.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serialization", derive(Deserialize, Serialize))]
@@ -399,6 +638,85 @@ mod test {
         assert_eq!(
             line_sources,
             [Ok("foo\n"), Ok("bar\r\n"), Ok("\n"), Ok("baz")],
+        );
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "lsp")]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn position() {
+        let text = r#"
+let test = 2
+let test1 = ""
+test
+"#;
+        let mut files = Files::new();
+        let file_id = files.add("test", text);
+        let pos = files
+            .lsp_position_to_byte_index(
+                file_id,
+                &lsp::Position {
+                    line: 3,
+                    character: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(Location::new(3, 2), files.location(file_id, pos).unwrap());
+    }
+
+    // The protocol specifies that each `character` in position is a UTF-16 character.
+    // This means that `å` and `ä` here counts as 1 while `𐐀` counts as 2.
+    const UNICODE: &str = "åä t𐐀b";
+
+    #[test]
+    fn unicode_get_byte_index() {
+        let mut files = Files::new();
+        let file_id = files.add("unicode", UNICODE);
+
+        let result = files.lsp_position_to_byte_index(
+            file_id,
+            &lsp::Position {
+                line: 0,
+                character: 3,
+            },
+        );
+        assert_eq!(result, Ok(ByteIndex::from(5)));
+
+        let result = files.lsp_position_to_byte_index(
+            file_id,
+            &lsp::Position {
+                line: 0,
+                character: 6,
+            },
+        );
+        assert_eq!(result, Ok(ByteIndex::from(10)));
+    }
+
+    #[test]
+    fn unicode_get_position() {
+        let mut files = Files::new();
+        let file_id = files.add("unicode", UNICODE);
+
+        let result = files.byte_index_to_lsp_position(file_id, ByteIndex::from(5));
+        assert_eq!(
+            result,
+            Ok(lsp::Position {
+                line: 0,
+                character: 3,
+            })
+        );
+
+        let result = files.byte_index_to_lsp_position(file_id, ByteIndex::from(10));
+        assert_eq!(
+            result,
+            Ok(lsp::Position {
+                line: 0,
+                character: 6,
+            })
         );
     }
 }

@@ -1,5 +1,7 @@
 //! Diagnostic reporting support for the codespan crate.
 
+#[cfg(feature = "lsp")]
+use lsp_types as lsp;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -38,7 +40,7 @@ pub enum Severity {
 
 impl Severity {
     /// We want bugs to be the maximum severity, errors next, etc...
-    fn to_cmp_int(self) -> u8 {
+    fn into_cmp_int(self) -> u8 {
         match self {
             Severity::Bug => 5,
             Severity::Error => 4,
@@ -47,11 +49,21 @@ impl Severity {
             Severity::Help => 1,
         }
     }
+
+    #[cfg(feature = "lsp")]
+    pub fn into_lsp_severity(self) -> lsp::DiagnosticSeverity {
+        match self {
+            Severity::Error | Severity::Bug => lsp::DiagnosticSeverity::Error,
+            Severity::Warning => lsp::DiagnosticSeverity::Warning,
+            Severity::Note => lsp::DiagnosticSeverity::Information,
+            Severity::Help => lsp::DiagnosticSeverity::Hint,
+        }
+    }
 }
 
 impl PartialOrd for Severity {
     fn partial_cmp(&self, other: &Severity) -> Option<Ordering> {
-        u8::partial_cmp(&self.to_cmp_int(), &other.to_cmp_int())
+        u8::partial_cmp(&self.into_cmp_int(), &other.into_cmp_int())
     }
 }
 

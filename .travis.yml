@@ -11,6 +11,7 @@ env:
   - CARGO_FEATURES=""
   - CARGO_FEATURES="memory_usage"
   - CARGO_FEATURES="serialization"
+  - CARGO_FEATURES="lsp"
 
 matrix:
   allow_failures:
@@ -25,7 +26,3 @@ script:
   # codespan
   - cargo build --manifest-path=codespan/Cargo.toml --verbose --no-default-features --features="$CARGO_FEATURES"
   - cargo test --manifest-path=codespan/Cargo.toml --verbose --no-default-features --features="$CARGO_FEATURES"
-  # codespan-lsp
-  - cargo build --manifest-path=codespan-lsp/Cargo.toml --verbose
-  - cargo test --manifest-path=codespan-lsp/Cargo.toml --verbose
-  # codespan-reporting

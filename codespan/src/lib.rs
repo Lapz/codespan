@@ -17,6 +17,8 @@ mod location;
 pub mod reporting;
 mod span;
 
+#[cfg(feature = "lsp")]
+pub use crate::file::LspFilesError;
 pub use crate::file::{FileId, Files};
 pub use crate::file::{LineIndexOutOfBoundsError, LocationError, SpanOutOfBoundsError};
 pub use crate::index::{ByteIndex, ByteOffset};
