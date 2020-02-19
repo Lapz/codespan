@@ -5,14 +5,14 @@ use std::io;
 use std::str::FromStr;
 use termcolor::{ColorChoice, WriteColor};
 
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, LabelStyle};
 
 mod config;
 mod views;
 
 pub use termcolor;
 
-pub use self::config::{Chars, Config, DisplayStyle, Styles};
+pub use self::config::{Chars, Config, Styles};
 
 /// Emit a diagnostic using the given writer, context, config, and files.
 pub fn emit<Source: AsRef<str>>(
@@ -21,12 +21,56 @@ pub fn emit<Source: AsRef<str>>(
     files: &Files<Source>,
     diagnostic: &Diagnostic,
 ) -> io::Result<()> {
-    use self::views::{RichDiagnostic, ShortDiagnostic};
+    use std::collections::BTreeMap;
 
-    match config.display_style {
-        DisplayStyle::Rich => RichDiagnostic::new(diagnostic).emit(files, writer, config),
-        DisplayStyle::Short => ShortDiagnostic::new(diagnostic).emit(files, writer, config),
+    use self::views::MarkStyle;
+    use self::views::{Header, NewLine, Note, SourceSnippet};
+
+    // Emit the title
+    //
+    // ```text
+    // error[E0001]: unexpected type in `+` application
+    // ```
+    if let Some(title) = &diagnostic.title {
+        Header::new(diagnostic.severity, title).emit(writer, config)?;
+        NewLine::new().emit(writer, config)?;
     }
+
+    // Group labels by file
+
+    let mut label_groups = BTreeMap::new();
+
+    for label in &diagnostic.labels {
+        let mark_style = match label.style {
+            LabelStyle::Primary => MarkStyle::Primary(diagnostic.severity),
+            LabelStyle::Secondary => MarkStyle::Secondary,
+        };
+        label_groups
+            .entry(label.file_id)
+            .or_insert(vec![])
+            .push((label, mark_style));
+    }
+
+    // Emit the snippets, starting with the one that contains the primary label
+
+    for (file_id, labels) in label_groups {
+        // FIXME: consistent gutter padding
+        SourceSnippet::new(file_id, labels).emit(files, writer, config)?;
+    }
+
+    // Additional notes
+    //
+    // ```text
+    // = expected type `Int`
+    //      found type `String`
+    // ```
+    for note in &diagnostic.notes {
+        let gutter_padding = 0; // TODO: use gutter padding from emitting source snippets
+        Note::new(gutter_padding, &note).emit(writer, config)?;
+    }
+    NewLine::new().emit(writer, config)?;
+
+    Ok(())
 }
 
 /// A command line argument that configures the coloring of the output.
@@ -105,7 +149,7 @@ mod tests {
             &mut termcolor::NoColor::new(Vec::<u8>::new()) as &mut dyn WriteColor,
             &Config::default(),
             &files,
-            &Diagnostic::new_bug("", Label::new(id, codespan::Span::default(), "")),
+            &Diagnostic::bug().with_labels(vec![Label::primary(id, codespan::Span::default(), "")]),
         )
         .unwrap();
     }

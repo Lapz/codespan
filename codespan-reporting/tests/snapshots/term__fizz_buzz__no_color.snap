@@ -1,6 +1,6 @@
 ---
 source: codespan-reporting/tests/term.rs
-expression: TEST_DATA.emit_no_color(&config)
+expression: TEST_DATA.emit_no_color(&test_config())
 ---
 error[E0308]: `case` clauses have incompatible types
 
@@ -20,8 +20,8 @@ error[E0308]: `case` clauses have incompatible types
  3 │ fizz₁ : Nat → String
    │               ------ expected type `String` found here
    │
-   = expected type `String`
-        found type `Nat`
+  = expected type `String`
+       found type `Nat`
 
 error[E0308]: `case` clauses have incompatible types
 
@@ -46,7 +46,7 @@ error[E0308]: `case` clauses have incompatible types
  14 │         _ 0 => "Buzz"
     │                ------ this is found to be of type `String`
     │
-    = expected type `String`
-         found type `Nat`
+  = expected type `String`
+       found type `Nat`
 
 

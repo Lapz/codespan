@@ -1,6 +1,6 @@
 ---
 source: codespan-reporting/tests/term.rs
-expression: TEST_DATA.emit_no_color(&config)
+expression: TEST_DATA.emit_no_color(&test_config())
 ---
 note: middle
 

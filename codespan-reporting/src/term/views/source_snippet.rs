@@ -7,17 +7,11 @@ use crate::term::Config;
 
 use super::{Locus, NewLine};
 
-mod border;
-mod gutter;
-mod note;
-mod underline;
-
-use self::border::{BorderLeft, BorderLeftBreak, BorderTop, BorderTopLeft};
-use self::gutter::Gutter;
-use self::note::Note;
-use self::underline::{Underline, UnderlineBottom, UnderlineLeft, UnderlineTop, UnderlineTopLeft};
-
-pub use self::underline::MarkStyle;
+pub use super::underline::MarkStyle;
+use super::{
+    BorderLeft, BorderLeftBreak, BorderTop, BorderTopLeft, Gutter, Underline, UnderlineBottom,
+    UnderlineLeft, UnderlineTop, UnderlineTopLeft,
+};
 
 /// An underlined snippet of source code.
 ///
@@ -33,16 +27,11 @@ pub use self::underline::MarkStyle;
 pub struct SourceSnippet<'a> {
     file_id: FileId,
     spans: Vec<(&'a Label, MarkStyle)>,
-    notes: &'a [String],
 }
 
 impl<'a> SourceSnippet<'a> {
-    pub fn new(file_id: FileId, spans: Vec<(&'a Label, MarkStyle)>, notes: &'a [String]) -> Self {
-        SourceSnippet {
-            file_id,
-            spans,
-            notes,
-        }
+    pub fn new(file_id: FileId, spans: Vec<(&'a Label, MarkStyle)>) -> Self {
+        SourceSnippet { file_id, spans }
     }
 
     fn source_locus_spans(&self) -> (Span, Span) {
@@ -301,17 +290,6 @@ impl<'a> SourceSnippet<'a> {
         Gutter::new(None, gutter_padding).emit(writer, config)?;
         BorderLeft::new().emit(writer, config)?;
         NewLine::new().emit(writer, config)?;
-
-        // Additional notes
-        //
-        // ```text
-        // = expected type `Int`
-        //      found type `String`
-        // ```
-
-        for note in self.notes {
-            Note::new(gutter_padding, note).emit(writer, config)?;
-        }
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 ---
 source: codespan-reporting/tests/term.rs
-expression: TEST_DATA.emit_color(&config)
+expression: TEST_DATA.emit_color(&test_config())
 ---
 {fg:Red bold bright}error[E0308]{bold bright}: `case` clauses have incompatible types{/}
 
@@ -20,8 +20,8 @@ expression: TEST_DATA.emit_color(&config)
  {fg:Blue}3{/} {fg:Blue}│{/} fizz₁ : Nat → {fg:Blue}String{/}
    {fg:Blue}│{/}               {fg:Blue}------ expected type `String` found here{/}
    {fg:Blue}│{/}
-   {fg:Blue}={/} expected type `String`
-        found type `Nat`
+  {fg:Blue}={/} expected type `String`
+       found type `Nat`
 
 {fg:Red bold bright}error[E0308]{bold bright}: `case` clauses have incompatible types{/}
 
@@ -46,7 +46,7 @@ expression: TEST_DATA.emit_color(&config)
  {fg:Blue}14{/} {fg:Blue}│{/}         _ 0 => {fg:Blue}"Buzz"{/}
     {fg:Blue}│{/}                {fg:Blue}------ this is found to be of type `String`{/}
     {fg:Blue}│{/}
-    {fg:Blue}={/} expected type `String`
-         found type `Nat`
+  {fg:Blue}={/} expected type `String`
+       found type `Nat`
 
 

@@ -1,6 +1,6 @@
 use codespan::Files;
-use codespan_reporting::diagnostic::{Diagnostic, Label};
-use codespan_reporting::term::{termcolor::Color, Config, DisplayStyle, Styles};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Title};
+use codespan_reporting::term::{termcolor::Color, Config, Styles};
 
 mod support;
 
@@ -25,9 +25,15 @@ mod empty_spans {
             let eof = files.source_span(file_id).end();
 
             let diagnostics = vec![
-                Diagnostic::new_note("middle", Label::new(file_id, 6..6, "middle")),
-                Diagnostic::new_note("end of line", Label::new(file_id, 12..12, "end of line")),
-                Diagnostic::new_note("end of file", Label::new(file_id, eof..eof, "end of file")),
+                Diagnostic::note()
+                    .with_title("middle")
+                    .with_labels(vec![Label::primary(file_id, 6..6, "middle")]),
+                Diagnostic::note()
+                    .with_title("end of line")
+                    .with_labels(vec![Label::primary(file_id, 12..12, "end of line")]),
+                Diagnostic::note()
+                    .with_title("end of file")
+                    .with_labels(vec![Label::primary(file_id, eof..eof, "end of file")]),
             ];
 
             TestData { files, diagnostics }
@@ -35,23 +41,13 @@ mod empty_spans {
     }
 
     #[test]
-    fn rich_color() {
-        let config = Config {
-            display_style: DisplayStyle::Rich,
-            ..test_config()
-        };
-
-        insta::assert_snapshot!("rich_color", TEST_DATA.emit_color(&config));
+    fn color() {
+        insta::assert_snapshot!("color", TEST_DATA.emit_color(&test_config()));
     }
 
     #[test]
-    fn rich_no_color() {
-        let config = Config {
-            display_style: DisplayStyle::Rich,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("rich_no_color", TEST_DATA.emit_no_color(&config));
+    fn no_color() {
+        insta::assert_snapshot!("no_color", TEST_DATA.emit_no_color(&test_config()));
     }
 }
 
@@ -102,30 +98,24 @@ mod multifile {
 
             let diagnostics = vec![
                 // Unknown builtin error
-                Diagnostic::new_error(
-                    "unknown builtin: `NATRAL`",
-                    Label::new(file_id1, 96..102, "unknown builtin"),
-                )
-                .with_notes(vec![
-                    "there is a builtin with a similar name: `NATURAL`".to_owned()
-                ]),
+                Diagnostic::error()
+                    .with_title("unknown builtin: `NATRAL`")
+                    .with_labels(vec![Label::primary(file_id1, 96..102, "unknown builtin")])
+                    .with_notes(vec![
+                        "there is a builtin with a similar name: `NATURAL`".to_owned(),
+                    ]),
                 // Unused parameter warning
-                Diagnostic::new_warning(
-                    "unused parameter pattern: `n₂`",
-                    Label::new(file_id1, 285..289, "unused parameter"),
-                )
-                .with_notes(vec!["consider using a wildcard pattern: `_`".to_owned()]),
+                Diagnostic::warning()
+                    .with_title("unused parameter pattern: `n₂`")
+                    .with_labels(vec![Label::primary(file_id1, 285..289, "unused parameter")])
+                    .with_notes(vec!["consider using a wildcard pattern: `_`".to_owned()]),
                 // Unexpected type error
-                Diagnostic::new_error(
-                    "unexpected type in application of `_+_`",
-                    Label::new(file_id2, 37..44, "expected `Nat`, found `String`"),
-                )
-                .with_code("E0001")
-                .with_secondary_labels(vec![Label::new(
-                    file_id1,
-                    130..155,
-                    "based on the definition of `_+_`",
-                )]),
+                Diagnostic::error()
+                    .with_title(Title::new("unexpected type in application of `_+_`").with_code("E0001"))
+                    .with_labels(vec![
+                        Label::primary(file_id2, 37..44, "expected `Nat`, found `String`"),
+                        Label::secondary(file_id1, 130..155, "based on the definition of `_+_`"),
+                    ]),
             ];
 
             TestData { files, diagnostics }
@@ -133,43 +123,13 @@ mod multifile {
     }
 
     #[test]
-    fn rich_color() {
-        let config = Config {
-            display_style: DisplayStyle::Rich,
-            ..test_config()
-        };
-
-        insta::assert_snapshot!("rich_color", TEST_DATA.emit_color(&config));
+    fn color() {
+        insta::assert_snapshot!("color", TEST_DATA.emit_color(&test_config()));
     }
 
     #[test]
-    fn short_color() {
-        let config = Config {
-            display_style: DisplayStyle::Short,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("short_color", TEST_DATA.emit_color(&config));
-    }
-
-    #[test]
-    fn rich_no_color() {
-        let config = Config {
-            display_style: DisplayStyle::Rich,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("rich_no_color", TEST_DATA.emit_no_color(&config));
-    }
-
-    #[test]
-    fn short_no_color() {
-        let config = Config {
-            display_style: DisplayStyle::Short,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("short_no_color", TEST_DATA.emit_no_color(&config));
+    fn no_color() {
+        insta::assert_snapshot!("no_color", TEST_DATA.emit_no_color(&test_config()));
     }
 }
 
@@ -205,39 +165,35 @@ mod fizz_buzz {
 
             let diagnostics = vec![
                 // Incompatible match clause error
-                Diagnostic::new_error(
-                    "`case` clauses have incompatible types",
-                    Label::new(file_id, 163..166, "expected `String`, found `Nat`"),
-                )
-                .with_code("E0308")
-                .with_notes(vec![unindent::unindent(
-                    "
+                Diagnostic::error()
+                    .with_title(Title::new("`case` clauses have incompatible types").with_code("E0308"))
+                    .with_labels(vec![
+                        Label::primary(file_id, 163..166, "expected `String`, found `Nat`"),
+                        Label::secondary(file_id, 62..166, "`case` clauses have incompatible types"),
+                        Label::secondary(file_id, 41..47, "expected type `String` found here"),
+                    ])
+                    .with_notes(vec![unindent::unindent(
+                        "
                         expected type `String`
                            found type `Nat`
-                    ",
-                )])
-                .with_secondary_labels(vec![
-                    Label::new(file_id, 62..166, "`case` clauses have incompatible types"),
-                    Label::new(file_id, 41..47, "expected type `String` found here"),
-                ]),
+                        ",
+                    )]),
                 // Incompatible match clause error
-                Diagnostic::new_error(
-                    "`case` clauses have incompatible types",
-                    Label::new(file_id, 303..306, "expected `String`, found `Nat`"),
-                )
-                .with_code("E0308")
-                .with_notes(vec![unindent::unindent(
-                    "
+                Diagnostic::error()
+                    .with_title(Title::new("`case` clauses have incompatible types").with_code("E0308"))
+                    .with_labels(vec![
+                        Label::primary(file_id, 303..306, "expected `String`, found `Nat`"),
+                        Label::secondary(file_id, 186..306, "`case` clauses have incompatible types"),
+                        Label::secondary(file_id, 233..243, "this is found to be of type `String`"),
+                        Label::secondary(file_id, 259..265, "this is found to be of type `String`"),
+                        Label::secondary(file_id, 281..287, "this is found to be of type `String`"),
+                    ])
+                    .with_notes(vec![unindent::unindent(
+                        "
                         expected type `String`
                            found type `Nat`
-                    ",
-                )])
-                .with_secondary_labels(vec![
-                    Label::new(file_id, 186..306, "`case` clauses have incompatible types"),
-                    Label::new(file_id, 233..243, "this is found to be of type `String`"),
-                    Label::new(file_id, 259..265, "this is found to be of type `String`"),
-                    Label::new(file_id, 281..287, "this is found to be of type `String`"),
-                ]),
+                        ",
+                    )]),
             ];
 
             TestData { files, diagnostics }
@@ -245,43 +201,13 @@ mod fizz_buzz {
     }
 
     #[test]
-    fn rich_color() {
-        let config = Config {
-            display_style: DisplayStyle::Rich,
-            ..test_config()
-        };
-
-        insta::assert_snapshot!("rich_color", TEST_DATA.emit_color(&config));
+    fn color() {
+        insta::assert_snapshot!("color", TEST_DATA.emit_color(&test_config()));
     }
 
     #[test]
-    fn short_color() {
-        let config = Config {
-            display_style: DisplayStyle::Short,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("short_color", TEST_DATA.emit_color(&config));
-    }
-
-    #[test]
-    fn rich_no_color() {
-        let config = Config {
-            display_style: DisplayStyle::Rich,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("rich_no_color", TEST_DATA.emit_no_color(&config));
-    }
-
-    #[test]
-    fn short_no_color() {
-        let config = Config {
-            display_style: DisplayStyle::Short,
-            ..Config::default()
-        };
-
-        insta::assert_snapshot!("short_no_color", TEST_DATA.emit_no_color(&config));
+    fn no_color() {
+        insta::assert_snapshot!("no_color", TEST_DATA.emit_no_color(&test_config()));
     }
 }
 
@@ -305,18 +231,15 @@ mod tabbed {
             );
 
             let diagnostics = vec![
-                Diagnostic::new_warning(
-                    "unknown weapon `DogJaw`",
-                    Label::new(file_id, 29..35, "the weapon"),
-                ),
-                Diagnostic::new_warning(
-                    "unknown condition `attack-cooldown`",
-                    Label::new(file_id, 58..73, "the condition"),
-                ),
-                Diagnostic::new_warning(
-                    "unknown field `Foo`",
-                    Label::new(file_id, 75..78, "the field"),
-                ),
+                Diagnostic::warning()
+                    .with_title("unknown weapon `DogJaw`")
+                    .with_labels(vec![Label::primary(file_id, 29..35, "the weapon")]),
+                Diagnostic::warning()
+                    .with_title("unknown condition `attack-cooldown`")
+                    .with_labels(vec![Label::primary(file_id, 58..73, "the condition")]),
+                Diagnostic::warning()
+                    .with_title("unknown field `Foo`")
+                    .with_labels(vec![Label::primary(file_id, 75..78, "the field")]),
             ];
 
             TestData { files, diagnostics }
@@ -325,7 +248,7 @@ mod tabbed {
 
     #[test]
     fn tab_width_default_no_color() {
-        let config = Config::default();
+        let config = test_config();
 
         insta::assert_snapshot!(
             "tab_width_default_no_color",
@@ -337,7 +260,7 @@ mod tabbed {
     fn tab_width_3_no_color() {
         let config = Config {
             tab_width: 3,
-            ..Config::default()
+            ..test_config()
         };
 
         insta::assert_snapshot!("tab_width_3_no_color", TEST_DATA.emit_no_color(&config));
@@ -347,7 +270,7 @@ mod tabbed {
     fn tab_width_6_no_color() {
         let config = Config {
             tab_width: 6,
-            ..Config::default()
+            ..test_config()
         };
 
         insta::assert_snapshot!("tab_width_6_no_color", TEST_DATA.emit_no_color(&config));

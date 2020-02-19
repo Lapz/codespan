@@ -5,9 +5,6 @@ use crate::diagnostic::Severity;
 /// Configures how a diagnostic is rendered.
 #[derive(Clone, Debug)]
 pub struct Config {
-    /// The display style to use when rendering diagnostics.
-    /// Defaults to: `DisplayStyle::Rich`.
-    pub display_style: DisplayStyle,
     /// Column width of tabs.
     /// Defaults to: `4`.
     pub tab_width: usize,
@@ -20,7 +17,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            display_style: DisplayStyle::Rich,
             tab_width: 4,
             styles: Styles::default(),
             chars: Chars::default(),
@@ -45,31 +41,6 @@ impl Config {
     pub fn tab_padding(&self) -> String {
         (0..self.tab_width).map(|_| ' ').collect()
     }
-}
-
-/// The display style to use when rendering diagnostics.
-#[derive(Clone, Debug)]
-pub enum DisplayStyle {
-    /// Output a richly formatted diagnostic, with source code previews.
-    ///
-    /// ```text
-    /// error[E0001]: unexpected type in `+` application
-    ///
-    ///    ┌── test:2:9 ───
-    ///    │
-    ///  2 │ (+ test "")
-    ///    │         ^^ expected `Int` but found `String`
-    ///    │
-    ///    = expected type `Int`
-    ///         found type `String`
-    /// ```
-    Rich,
-    /// Output a short diagnostic, with a line number, severity, and message.
-    ///
-    /// ```text
-    /// test:2:9: error[E0001]: unexpected type in `+` application
-    /// ```
-    Short,
 }
 
 /// Styles to use when rendering the diagnostic.

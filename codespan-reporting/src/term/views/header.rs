@@ -1,7 +1,7 @@
 use std::io;
 use termcolor::WriteColor;
 
-use crate::diagnostic::{Diagnostic, Severity};
+use crate::diagnostic::{Severity, Title};
 use crate::term::Config;
 
 use super::NewLine;
@@ -14,17 +14,12 @@ use super::NewLine;
 #[derive(Copy, Clone, Debug)]
 pub struct Header<'a> {
     severity: Severity,
-    code: Option<&'a str>,
-    message: &'a str,
+    title: &'a Title,
 }
 
 impl<'a> Header<'a> {
-    pub fn new(diagnostic: &'a Diagnostic) -> Header<'a> {
-        Header {
-            severity: diagnostic.severity,
-            code: diagnostic.code.as_ref().map(String::as_str),
-            message: &diagnostic.message,
-        }
+    pub fn new(severity: Severity, title: &'a Title) -> Header<'a> {
+        Header { severity, title }
     }
 
     fn severity_name(&self) -> &'static str {
@@ -45,7 +40,7 @@ impl<'a> Header<'a> {
         // ```
         writer.set_color(config.styles.header(self.severity))?;
         write!(writer, "{}", self.severity_name())?;
-        if let Some(code) = &self.code {
+        if let Some(code) = &self.title.code {
             // Write error code
             //
             // ```text
@@ -60,7 +55,7 @@ impl<'a> Header<'a> {
         // : unexpected type in `+` application
         // ```
         writer.set_color(&config.styles.header_message)?;
-        write!(writer, ": {}", self.message)?;
+        write!(writer, ": {}", self.title.message)?;
         writer.reset()?;
 
         NewLine::new().emit(writer, config)?;
