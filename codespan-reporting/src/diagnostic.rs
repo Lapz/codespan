@@ -60,7 +60,7 @@ pub enum LabelStyle {
 }
 
 /// A label describing an underlined region of code associated with a diagnostic.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct Label<FileId> {
     /// The style of the label.
@@ -112,7 +112,7 @@ impl<FileId> Label<FileId> {
 
 /// Represents a diagnostic message that can provide information like errors and
 /// warnings to the user.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct Diagnostic<FileId> {
     /// The overall severity of the diagnostic
