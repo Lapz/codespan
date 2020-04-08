@@ -42,7 +42,7 @@ impl fmt::Display for LocationError {
             ),
             LocationError::InvalidCharBoundary { given } => {
                 write!(f, "Byte index within character boundary - given: {}", given)
-            },
+            }
         }
     }
 }
@@ -95,9 +95,10 @@ impl FileId {
 /// [`Cow<'_, str>`]: std::borrow::Cow
 /// [`Rc<str>`]: std::rc::Rc
 /// [`Arc<str>`]: std::sync::Arc
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct Files<Source> {
     files: Vec<File<Source>>,
+    ids: Vec<(OsString, FileId)>,
 }
 
 impl<Source> Default for Files<Source>
@@ -105,7 +106,10 @@ where
     Source: AsRef<str>,
 {
     fn default() -> Self {
-        Self { files: vec![] }
+        Self {
+            files: vec![],
+            ids: vec![],
+        }
     }
 }
 
@@ -121,8 +125,16 @@ where
     /// Add a file to the database, returning the handle that can be used to
     /// refer to it again.
     pub fn add(&mut self, name: impl Into<OsString>, source: Source) -> FileId {
+        let os_string = name.into();
+
+        for (name, id) in &self.ids {
+            if name == &os_string {
+                return *id;
+            }
+        }
+
         let file_id = FileId::new(self.files.len());
-        self.files.push(File::new(name.into(), source.into()));
+        self.files.push(File::new(os_string, source.into()));
         file_id
     }
 
